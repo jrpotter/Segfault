@@ -1,10 +1,13 @@
 package segfault.layout;
 
+import java.util.ArrayDeque;
+
 import java.awt.Component;
-import javax.swing.JSeparator;
+import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
 
-import java.util.ArrayDeque;
+import javax.swing.JSeparator;
+
 
 /**
  * The split node works by abstracting the idea of recursive
@@ -99,9 +102,12 @@ public class SplitNode {
     }
 
     /** 
-     * Deletion Methods.
+     * Removal Methods.
      * 
     */
+    public void removeNode(Component c) {
+
+    }
 
 
     /** 
@@ -114,15 +120,15 @@ public class SplitNode {
      * add parent pointer in node. Allow quick finding of 
      * desired nodes.
     */
-    public void split(Component c, int orientation) {
+    public void split(Component split, Component add, int orientation) {
 
         ArrayDeque<SplitNode> search = new ArrayDeque<SplitNode>();
         search.add(this);
 
         while(!search.isEmpty()){
             SplitNode s = search.removeFirst();
-            if(s.comp == c) {
-                s.addNode(c, orientation);
+            if(s.comp == split) {
+                s.addNode(add, orientation);
                 return;
             } else {
                 if(s.left != null) search.add(s.left);
@@ -130,6 +136,5 @@ public class SplitNode {
             }
         }
     }
-
 }
 
