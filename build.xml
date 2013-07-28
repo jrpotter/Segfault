@@ -1,0 +1,51 @@
+<!-- Ant File for building and running Segfault -->
+<project name="Segfault" default="build" basedir=".">
+
+    <target name="init">
+        <property name="src" value="./src" />
+        <property name="dev" value="./dev" />
+        <property name="doc" value="./doc" />
+        <property name="lib" value="./lib" />
+        <property name="rsrc" value="./rsrc" />
+        <property name="classes" value="./classes" />
+        <property name="target" value="segfault.Main" />
+
+        <!-- Remove debug flag & add optimization flag for production --> 
+        <presetdef name="javac">
+            <javac destdir="${classes}"
+                   includeantruntime="false"
+                   debug="on" />
+        </presetdef>
+    </target>
+
+    <!-- Reset classes -->
+    <target name="clean" depends="init">
+        <delete dir="${classes}" />
+        <mkdir dir="${classes}" />
+    </target>
+
+    <!-- IDE Emulator Methods -->
+    <target name="build" depends="init">
+        <javac srcdir="${src}">
+            <include name="**/*.java" />
+        </javac>
+
+        <javac srcdir=".">
+            <include name="Main.java" />
+        </javac>
+    </target>
+
+    <target name="run" depends="init">
+        <java classname="${target}" fork="true">
+            <classpath>
+                <pathelement path="${classes}" />
+            </classpath>
+        </java>
+    </target>
+
+    <target name="build-run" depends="build">
+        <antcall target="build" />
+        <antcall target="run" />
+    </target>
+
+</project>
