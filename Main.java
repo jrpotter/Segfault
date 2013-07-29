@@ -1,8 +1,8 @@
 package segfault;
 
 import javax.swing.*;
-import segfault.layout.SplitLayout;
 import segfault.core.MainWindow;
+import segfault.core.SplitLayout;
 
 public class Main
 {
