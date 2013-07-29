@@ -1,6 +1,7 @@
 package segfault;
 
 import javax.swing.*;
+import segfault.layout.SplitLayout;
 import segfault.core.MainWindow;
 
 public class Main
@@ -8,12 +9,8 @@ public class Main
     public static void main(String[] args)
     {
         MainWindow frame = new MainWindow("Demo");
+        frame.setLayout(new SplitLayout());
 
-        //MultiPane m = new MultiPane();
-        //frame.add(new JButton("test"));
-        //frame.add(m.getDivider());
-        //frame.add(new JButton("BLAH"));
-        
         frame.pack();
         frame.setVisible(true);
         frame.setExtendedState(JFrame.MAXIMIZED_BOTH);

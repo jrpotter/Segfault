@@ -1,6 +1,6 @@
-Things to work on:
-    Flexible Grid Layout
-    Syntax Highlighting
-    Undo tree? (Check Word)
+In progress:
+    Undo Tree
+    Split layout
 
-Also look up using ANT
+Features Completed:
+    ANT File - July 26, 2013

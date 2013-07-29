@@ -2,7 +2,9 @@ package segfault.layout;
 
 import java.util.ArrayDeque;
 
+import java.awt.Insets;
 import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
 
@@ -42,6 +44,18 @@ public class SplitNode {
         comp = c;
         left = right = null;
         v_divider = h_divider = null;
+    }
+
+    public Component getComponent() {
+        return comp;
+    }
+
+    public SplitNode getLeft() {
+        return left;
+    }
+
+    public SplitNode getRight() {
+        return right;
     }
 
     /** 
@@ -104,14 +118,43 @@ public class SplitNode {
     /** 
      * Removal Methods.
      * 
+     * Recursively checks left and right subtrees
+     * for a match, deleting in a manner similar to
+     * a linked list once found. Returns true if 
+     * the node has been deleted.
+     *
+     * TODO: Traverses entire tree currently
     */
     public void removeNode(Component c) {
-
+        removeNode(this, c);
     }
 
+    private SplitNode removeNode(SplitNode s, Component c) {
+        if(s == null) return null;
+
+        if(s.comp == c) {
+            if(s.right != null) {
+                // Place left element on end of right's left subtree
+                SplitNode tmp = s.right;
+                while(tmp.left != null) {
+                    tmp = tmp.left;
+                }                
+                
+                tmp.left = s.left;
+                return s.right;
+            } else {
+                return s.left;
+            }
+        }
+
+        s.left = removeNode(s.left, c);
+        s.right = removeNode(s.right, c);
+        return s;
+    }
 
     /** 
      * Splitting.
+     *
      * The following method finds the node containing the
      * @component. Note the solution is iterative to allow
      * shortcircuiting once the correct component is found.
@@ -125,7 +168,7 @@ public class SplitNode {
         ArrayDeque<SplitNode> search = new ArrayDeque<SplitNode>();
         search.add(this);
 
-        while(!search.isEmpty()){
+        while(!search.isEmpty()) {
             SplitNode s = search.removeFirst();
             if(s.comp == split) {
                 s.addNode(add, orientation);
@@ -135,6 +178,87 @@ public class SplitNode {
                 if(s.right != null) search.add(s.right); 
             }
         }
+    }
+
+    /**
+     * Size Methods.
+     *
+     * Used by the SplitLayout, the following three functions return
+     * the nodes sizes (calling the subcomponents corresponding functions).
+    */
+    public Dimension minimumSize() {
+        Dimension base = new Dimension(0, 0);
+        
+        // Find size of left tree
+        if(left != null) {
+            Dimension left_min = left.minimumSize();
+            base.width += left_min.width;
+            base.height = Math.max(left_min.height, base.height);
+        }        
+
+        // Find size of right tree
+        if(right != null) {
+            Dimension right_min = right.minimumSize();
+            base.width += right_min.width;
+            base.height = Math.max(right_min.height, base.height);
+        }
+
+        // Find size of current component
+        Dimension c_min = comp.getMinimumSize();
+        base.width += c_min.width;
+        base.height += c_min.height;
+
+        return base;
+    }
+
+    public Dimension maximumSize() {
+        Dimension base = new Dimension(0, 0);
+        
+        // Find size of left tree
+        if(left != null) {
+            Dimension left_max = left.maximumSize();
+            base.width += left_max.width;
+            base.height = Math.max(left_max.height, base.height);
+        }        
+
+        // Find size of right tree
+        if(right != null) {
+            Dimension right_max = right.maximumSize();
+            base.width += right_max.width;
+            base.height = Math.max(right_max.height, base.height);
+        }
+
+        // Find size of current component
+        Dimension c_max = comp.getMaximumSize();
+        base.width += c_max.width;
+        base.height += c_max.height;
+
+        return base;
+    }
+
+    public Dimension preferredSize() {
+        Dimension base = new Dimension(0, 0);
+        
+        // Find size of left tree
+        if(left != null) {
+            Dimension left_pref = left.preferredSize();
+            base.width += left_pref.width;
+            base.height = Math.max(left_pref.height, base.height);
+        }        
+
+        // Find size of right tree
+        if(right != null) {
+            Dimension right_pref = right.preferredSize();
+            base.width += right_pref.width;
+            base.height = Math.max(right_pref.height, base.height);
+        }
+
+        // Find size of current component
+        Dimension c_pref = comp.getPreferredSize();
+        base.width += c_pref.width;
+        base.height += c_pref.height;
+
+        return base;
     }
 }
 
