@@ -1,8 +1,10 @@
 package segfault.core;
 
 // Swing
-import java.awt.Insets;
 import java.awt.Dimension;
+import java.awt.Rectangle;
+
+import java.awt.Insets;
 import java.awt.Component;
 import java.awt.Container;
 import javax.swing.JSeparator;
@@ -21,7 +23,7 @@ import java.util.ArrayDeque;
  * one can work on multiple sliding panes, without
  * dealing with the recursiveness of JSplitPanes.
  *
- * The bulk of the organization resides in the SplitNode,
+ * The bulk of the organization resides in the Node,
  * providing a tree model that maps well with the idea
  * of nested JSplitPanes. A further explanation can be
  * found in the comment before the class definition.
@@ -41,13 +43,13 @@ public class SplitLayout implements LayoutManager2 {
      * component in the layout should be split and
      * whether or not that split is verical or horizontal.
     */
-    public static class SplitConstraints {
+    public static class Split {
 
         private Component split;
         private int orientation;
 
-        public SplitConstraints(Component split, int orientation) {
-            if(orientation != VERTICAL || orientation != HORIZONTAL)
+        public Split(Component split, int orientation) {
+            if(orientation != VERTICAL && orientation != HORIZONTAL)
                 throw new IllegalArgumentException("Invalid orientation specified");
 
             this.split = split;
@@ -75,33 +77,49 @@ public class SplitLayout implements LayoutManager2 {
      * is traversed depth-first, in a preorder manner moving from
      * from the right subtree (horizontal elements) to the left.
     */
-    private class SplitNode extends MouseMotionAdapter {
+    private class Node extends MouseMotionAdapter {
 
         private Component key;
-        private JSeparator h_div, v_div;
-        private SplitNode left, right, parent;
+        private Node parent;
 
-        public SplitNode() {
+        // Vertical Splits
+        private Node left;
+        private double v_weight;
+        private JSeparator v_div;
+
+        // Horizontal Splits
+        private Node right;
+        private double h_weight;
+        private JSeparator h_div;
+
+        // Constructors
+        public Node() {
             this(null);
         }
 
-        public SplitNode(Component key) {
+        public Node(Component key) {
             this(key, null);
         }
 
-        public SplitNode(Component key, SplitNode parent) {
+        public Node(Component key, Node parent) {
             this.key = key;
             this.parent = parent;
 
             left = right = null;
             h_div = v_div = null;
+            h_weight = v_weight = 1.d;
         }
 
         
-        // Helper Methods
-        private void replace(SplitNode s, SplitNode r) {
+        // Convenience Methods
+        private void replace(Node s, Node r) {
             if(left == s) left = r;
             else if(right == s) right = r;
+        }
+
+        private void add(Dimension fst, Dimension snd) {
+            fst.width += snd.width;
+            fst.height = Math.max(fst.height, snd.height);
         }
 
 
@@ -116,8 +134,8 @@ public class SplitLayout implements LayoutManager2 {
         */
         private void addNode(Component c, int orientation) {
             if(orientation == VERTICAL) {
-                SplitNode tmp = left;
-                left = new SplitNode(c, this);
+                Node tmp = left;
+                left = new Node(c, this);
                 left.left = tmp;
 
                 // First time a veritcal insertion is made on this node
@@ -126,8 +144,8 @@ public class SplitLayout implements LayoutManager2 {
                     v_div.addMouseMotionListener(this);
                 }    
             } else if(orientation == HORIZONTAL) {
-                SplitNode tmp = right;
-                right = new SplitNode(c, this);
+                Node tmp = right;
+                right = new Node(c, this);
                 right.right = tmp;
 
                 // First time a horizontal insertion is made on this node
@@ -147,11 +165,11 @@ public class SplitLayout implements LayoutManager2 {
         */
         public void insert(Component c, Component ins, int orientation) {
 
-            ArrayDeque<SplitNode> search = new ArrayDeque<SplitNode>();
+            ArrayDeque<Node> search = new ArrayDeque<Node>();
             search.add(this);
 
             while(!search.isEmpty()) {
-                SplitNode s = search.removeFirst();
+                Node s = search.removeFirst();
                 
                 if(s.key == c) {
                     s.addNode(ins, orientation);
@@ -179,17 +197,17 @@ public class SplitLayout implements LayoutManager2 {
         */
         public void remove(Component c) {
             
-            ArrayDeque<SplitNode> search = new ArrayDeque<SplitNode>();
+            ArrayDeque<Node> search = new ArrayDeque<Node>();
             search.add(this);
 
             while(!search.isEmpty()) {
-                SplitNode s = search.removeFirst();
+                Node s = search.removeFirst();
                 
                 if(s.key == c) {
                     if(right != null) {
 
                         // Attach left tree to leftmost node of right
-                        SplitNode tmp = right;
+                        Node tmp = right;
                         while(tmp.left != null) {
                             tmp = tmp.left;
                         }
@@ -216,12 +234,6 @@ public class SplitLayout implements LayoutManager2 {
          * Finds the left and right subdimensions, adding them
          * to the current node's component's dimensions.
         */
-        private void add(Dimension fst, Dimension snd) {
-            fst.width += snd.width;
-            fst.height = Math.max(fst.height, snd.height);
-        }
-
-
         public Dimension getMinimumSize() {
             Dimension base = new Dimension(0, 0);
             
@@ -273,24 +285,101 @@ public class SplitLayout implements LayoutManager2 {
             return base;
         }
 
+    
+        /**
+         * Layout Container.
+         *
+         * In order to adjust all components in one pass, weights
+         * are passed down a tree, and the collective weights
+         * from all subtrees are passed back up.
+         *
+         * For example, if given a node with weight 1 (100%) and
+         * a subtree of 2 nodes also with weight 1, 1 is passed down
+         * 3 times for a total of 3 at the bottom node. The percentage
+         * of space taken at the bottom node is therefore 1/3, which
+         * is given to the parent node for handling (2/3) and then back
+         * to the original for (3/3) or 100% of the space.
+        */
+        public void adjustSize(Dimension parent) {
+            adjustSize(new Rectangle(parent), 0.d, 0.d, VERTICAL);
+        }
+
+        // Double only returned by right tree
+        private void adjustSize(Rectangle free, double v_total, double h_total, int orientation) {
+
+            // Adjust totals
+            v_total += v_weight;
+            h_total += h_weight;
+            Rectangle tmp = new Rectangle(free);
+
+            // Pass to vertical components
+            if(left != null) left.adjustSize(free, v_total, 0.d, VERTICAL);
+
+            // Reclaims space from free region
+            if(orientation == VERTICAL) {
+                free.height -= free.height * (v_weight / v_total);
+                tmp.y = free.height;
+                tmp.height -= free.height;
+            } else if(orientation == HORIZONTAL) {
+                free.width -= free.width * (h_weight / h_total);
+                tmp.x = free.width;
+                tmp.width -= free.width;
+            }
+
+            // Pass to horizontal components
+            if(right != null) right.adjustSize(tmp, 0.d, h_total, HORIZONTAL);
+
+            // Set component in place
+            if(key != null) key.setBounds(tmp);
+        }
+
 
         /**
          * Event Handling.
          *
-         * If the horizontal bar is dragged, the widths
-         * of the current component and all components in the
-         * right subtree must be recalculated. 
+         * If the horizontal bar is dragged, the weights
+         * of the current component and the right component
+         * must be recalculated.
          *
-         * If the vertical bar is dragged, the heights of
-         * the current component and all components in the 
-         * left subtree must be recalculated.
+         * If the vertical bar is dragged, the weights of
+         * the current component and the left component
+         * must be recalculated.
         */
         @Override
         public void mouseDragged(MouseEvent e) {
             if(e.getSource() == h_div) {
 
+                // Find percentage change
+                double delta = h_div.getX() - e.getX();
+                double p = Math.abs(delta) / key.getWidth();
+
+                if(delta < 0) {
+                    h_weight -= p;
+                    right.h_weight += p;
+                } else {
+                    h_weight += p;
+                    right.h_weight -= p;
+                }
+
+                // Translate to the left or right
+                h_div.setLocation(e.getX(), h_div.getY());
+
             } else if(e.getSource() == v_div) {
 
+                // Find percentage change
+                int delta = h_div.getY() - e.getY();
+                double p = Math.abs(delta) / key.getHeight();
+
+                if(delta < 0) {
+                    v_weight -= p;
+                    left.v_weight += p;
+                } else {
+                    v_weight += p;
+                    left.v_weight -= p;
+                }
+
+                // Translate to the left or right
+                v_div.setLocation(v_div.getX(), e.getY());
             }
         }
     }
@@ -303,11 +392,7 @@ public class SplitLayout implements LayoutManager2 {
      * This allows easier reasoning in insertions 
      * and removals since the root cannot change.
     */
-    private SplitNode root;
-
-    public SplitLayout() {
-        root = new SplitNode();
-    }
+    private Node root = new Node();
 
 
     /**
@@ -325,15 +410,15 @@ public class SplitLayout implements LayoutManager2 {
 
     @Override
     public void addLayoutComponent(Component ins, Object constraints) {
-        if(constraints instanceof SplitConstraints) {
+        if(constraints instanceof Split) {
             // Get Data
-            SplitConstraints s = (SplitConstraints) constraints;
+            Split s = (Split) constraints;
             Component split = s.getSplit();
             int orientation = s.getOrientation();
 
             root.insert(split, ins, orientation);
         } else {
-            throw new IllegalArgumentException("Expecting SplitConstraints");
+            throw new IllegalArgumentException("Expecting Split");
         }
     }
 
@@ -391,11 +476,17 @@ public class SplitLayout implements LayoutManager2 {
     */
     @Override
     public void invalidateLayout(Container parent) {
-        root = new SplitNode();
+        root = new Node();
     } 
 
     @Override
     public void layoutContainer(Container parent) {
+        Insets inset = parent.getInsets();        
+        Dimension space = new Dimension(0, 0);
 
+        space.width = parent.getWidth() - inset.left - inset.right;
+        space.height = parent.getHeight() - inset.top - inset.bottom;
+
+        root.adjustSize(space);
     }
 }

@@ -10,6 +10,7 @@ public class Main
     {
         MainWindow frame = new MainWindow("Demo");
         frame.setLayout(new SplitLayout());
+        frame.add(new JTextArea("hi"), new SplitLayout.Split(null, 0));
 
         frame.pack();
         frame.setVisible(true);
