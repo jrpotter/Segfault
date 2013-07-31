@@ -79,8 +79,8 @@ public class SplitLayout implements LayoutManager2 {
     */
     private class Node extends MouseMotionAdapter {
 
-        private Component key;
         private Node parent;
+        private Component key;
 
         // Vertical Splits
         private Node left;
@@ -476,7 +476,7 @@ public class SplitLayout implements LayoutManager2 {
     */
     @Override
     public void invalidateLayout(Container parent) {
-        root = new Node();
+
     } 
 
     @Override
