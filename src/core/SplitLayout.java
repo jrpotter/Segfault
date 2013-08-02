@@ -103,7 +103,7 @@ public class SplitLayout implements LayoutManager2 {
 
         public Node(Component key, Node parent) {
             this.key = key;
-            this.parent = parent;
+            this.parent = (parent == null) ? this : parent;
 
             left = right = null;
             h_div = v_div = null;
@@ -113,8 +113,21 @@ public class SplitLayout implements LayoutManager2 {
         
         // Convenience Methods
         private void replace(Node s, Node r) {
-            if(left == s) left = r;
-            else if(right == s) right = r;
+            // Changing root
+            if(s == this) {
+                Node tmp = right;
+                while(tmp.left != null) {
+                    tmp = tmp.left;
+                }
+                tmp.left = left;
+
+                s = right;
+            }
+
+            else {
+                if(left == s) left = r;
+                else if(right == s) right = r;
+            }
         }
 
         private void add(Dimension fst, Dimension snd) {
@@ -137,24 +150,24 @@ public class SplitLayout implements LayoutManager2 {
                 Node tmp = left;
                 left = new Node(c, this);
                 left.left = tmp;
-
-                // First time a veritcal insertion is made on this node
-                if(tmp == null) {
-                    v_div = new JSeparator(orientation);
-                    v_div.addMouseMotionListener(this);
-                }    
             } else if(orientation == HORIZONTAL) {
                 Node tmp = right;
                 right = new Node(c, this);
                 right.right = tmp;
-
-                // First time a horizontal insertion is made on this node
-                if(tmp == null) {
-                    h_div = new JSeparator(orientation);
-                    h_div.addMouseMotionListener(this);
-                }    
             } else {
                 throw new IllegalArgumentException("Invalid orientation specified.");
+            }
+        }
+
+        private void addDividers() {
+            if(left != null && v_div == null) {
+                v_div = new JSeparator(HORIZONTAL);
+                v_div.addMouseMotionListener(this);
+            }
+
+            if(right != null && h_div == null) {
+                h_div = new JSeparator(VERTICAL);
+                h_div.addMouseMotionListener(this);
             }
         }
 
@@ -172,7 +185,9 @@ public class SplitLayout implements LayoutManager2 {
                 Node s = search.removeFirst();
                 
                 if(s.key == c) {
-                    s.addNode(ins, orientation);
+                    if(s.key == null) s.key = ins;
+                    else s.addNode(ins, orientation);
+                    s.addDividers();
                     return;
                 } else {
                     if(s.left != null) search.add(s.left);
@@ -300,12 +315,7 @@ public class SplitLayout implements LayoutManager2 {
          * is given to the parent node for handling (2/3) and then back
          * to the original for (3/3) or 100% of the space.
         */
-        public void adjustSize(Dimension parent) {
-            adjustSize(new Rectangle(parent), 0.d, 0.d, VERTICAL);
-        }
-
-        // Double only returned by right tree
-        private void adjustSize(Rectangle free, double v_total, double h_total, int orientation) {
+        public void adjustSize(Rectangle free, double v_total, double h_total, int orientation) {
 
             // Adjust totals
             v_total += v_weight;
@@ -487,6 +497,6 @@ public class SplitLayout implements LayoutManager2 {
         space.width = parent.getWidth() - inset.left - inset.right;
         space.height = parent.getHeight() - inset.top - inset.bottom;
 
-        root.adjustSize(space);
+        root.adjustSize(new Rectangle(space), 0.d, 0.d, VERTICAL);
     }
 }
