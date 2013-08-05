@@ -2,33 +2,26 @@ package segfault;
 
 import java.awt.*;
 import javax.swing.*;
-import segfault.layout.*;
 import segfault.core.MainWindow;
+import segfault.core.MultiPane;
 
 public class Main
 {
     public static void main(String[] args)
     {
-        MainWindow frame = new MainWindow("Demo");
+        JFrame frame = new JFrame("Demo");
         Container pane = frame.getContentPane();
-        pane.setLayout(new SplitLayout(pane));
 
-        // First TextArea
-        JTextArea textarea = new JTextArea("left");
-        pane.add(textarea, new Split(SplitLayout.HORIZONTAL));
-
-        // Second
-        JTextArea txtarea2 = new JTextArea("right");
-        pane.add(txtarea2, new Split(textarea, SplitLayout.HORIZONTAL));
-
-        // Third
-        JButton btn = new JButton("test");
-        pane.add(btn, new Split(textarea, SplitLayout.VERTICAL));
-
-        pane.remove(textarea);
+        JTextArea root = new JTextArea("Left");
+        MultiPane multi = new MultiPane(root);
+        multi.split(root, new JTextArea("Right"), 1);
+        multi.split(root, new JTextArea("Bottom"), 0);
+        pane.add(multi);
+       
 
         frame.pack();
         frame.setVisible(true);
+        frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
     }
 }

@@ -28,7 +28,6 @@
     <target name="build" depends="init">
         <javac srcdir="${src}">
             <include name="**/*.java" />
-            <exclude name="**/core/SplitLay*.java" />
         </javac>
 
         <javac srcdir=".">
