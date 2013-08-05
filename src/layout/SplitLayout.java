@@ -47,30 +47,38 @@ public class SplitLayout implements LayoutManager2 {
      *
      * Note that during laying the tree is traversed
      * depth-first, in a preorder manner moving from the 
-     * left subtree to the right.
+     * left subtree to the right or right to left
+     * depending on the node's priority member.
     */
     private class Node extends MouseMotionAdapter {
         
-        private Node parent;
         private Component key;
+        private Node parent = null;
+        private int priority = VERTICAL;
 
-        // Split Members
-        private Node left, right;
-        private JSeparator v_sep, h_sep;
-        private double v_weight, h_weight;
+        // Vertical Split
+        private Node left = null;
+        private double v_weight = 1.d;
+        private JSeparator v_sep = null;
+
+        // Horizontal Split
+        private Node right = null;
+        private double h_weight = 1.d;
+        private JSeparator h_sep = null;
 
         // Constructors
-        public Node(Component key) {
-            this(key, null);
+        public Node(Component key, int priority) {
+            this(key, null, priority);
         }
 
         public Node(Component key, Node parent) {
+            this(key, parent, VERTICAL);
+        }
+
+        public Node(Component key, Node parent, int priority) {
             this.key = key;
             this.parent = parent;
-
-            left = right = null;
-            v_sep = h_sep = null;
-            v_weight = h_weight = 1.d;
+            this.priority = priority;
         }
 
 
@@ -109,11 +117,13 @@ public class SplitLayout implements LayoutManager2 {
          * a horizontal split is requested (the left
          * subtree otherwise). 
         */
-        private void split(Component ins, int orientation) {
-            if(orientation == VERTICAL) {
+        private void split(Component ins, Split s) {
+            int priority = s.getPriority();
+            int orientation = s.getOrientation();
 
+            if(orientation == VERTICAL) {
                 Node tmp = left;
-                left = new Node(ins, this);
+                left = new Node(ins, this, priority);
                 left.left = tmp;
 
                 // Separator was not yet created
@@ -122,10 +132,9 @@ public class SplitLayout implements LayoutManager2 {
                     v_sep.addMouseMotionListener(this);
                 }
 
-            } else if(orientation == HORIZONTAL) {
-
+            } else {
                 Node tmp = right;
-                right = new Node(ins, this);
+                right = new Node(ins, this, priority);
                 right.right = tmp;
 
                 if(tmp == null) {
@@ -135,24 +144,21 @@ public class SplitLayout implements LayoutManager2 {
             }
         }
 
-        // First find @find and split if found
-        public void insert(Component find, Component ins, int orientation) {
+        // First find key and split if found
+        public void insert(Component ins, Split s) {
 
-            if(orientation != VERTICAL && orientation != HORIZONTAL)
-                throw new IllegalArgumentException("Invalid orientation");
-            
             LinkedList<Node> search = new LinkedList<Node>();
             search.add(this);
 
             while(!search.isEmpty()) {
-                Node s = search.removeFirst();
+                Node tmp = search.removeFirst();
 
-                if(s.key == find) {
-                    s.split(ins, orientation);
+                if(tmp.key == s.getComponent()) {
+                    tmp.split(ins, s);
                     break;
                 } else {
-                    if(s.left != null) search.add(s.left);
-                    if(s.right != null) search.add(s.right);
+                    if(tmp.left != null) search.add(tmp.left);
+                    if(tmp.right != null) search.add(tmp.right);
                 }
             }
         }
@@ -271,54 +277,48 @@ public class SplitLayout implements LayoutManager2 {
         /**
          * Layout Container.
          *
-         * In order to adjust all components in one pass, weights
-         * are passed down a tree, and the collective weights
-         * from all subtrees are passed back up.
-         *
-         * For example, if given a node with weight 1 and
-         * a subtree of 2 nodes also with weight 1, 1 is passed down
-         * 3 times for a total of 3 at the bottom node. The percentage
-         * of space taken at the bottom node is therefore 1/3, which
-         * is given to the parent node for handling (1/2) and then back
-         * to the original for (1/1) or 100% of the remaining space.
+         * A component and its left or right subtree has a collective
+         * weight of 2- a component takes up a percentage of free space
+         * proportional to its weight over 2.
         */
-        public void adjustSize(Rectangle free, double v_total, double h_total, int orientation) {
-
-            v_total += v_weight;
-            h_total += h_weight;
+        private void adjustSize(Rectangle free, int orientation) {
+    
             Rectangle tmp = new Rectangle(free);
 
             if(orientation == VERTICAL) {
+            
+                // Adjust rectangle vertically
+                free.height -= (int)(free.height * (v_weight / 2.d));
+                tmp.y = free.y + tmp.height - free.height;
+                tmp.height = free.height;
+                left.adjustSize(tmp);
 
-                // Must propogate vertically first
-                if(left != null) left.adjustSize(free, v_total, 0.d, VERTICAL);
-
-                int height = free.height;
-                free.height -= free.height * (v_weight / v_total);
-
-                tmp.y = free.height;
-                tmp.height = height - free.height;
-
-                // Propogate horizontally afterward
-                if(right != null) right.adjustSize(tmp, 0.d, h_total, HORIZONTAL);
+                // Adjust horizontal separator (v_sep)
 
             } else {
 
-                // Must propogate horizontally first
-                if(right != null) right.adjustSize(free, 0.d, h_total, HORIZONTAL);
+                // Adjust rectangle horizontally
+                free.width -= (int)(free.width * (h_weight / 2.d));
+                tmp.x = free.x + tmp.width - free.width;
+                tmp.width = free.width;
+                right.adjustSize(tmp);
 
-                int width = free.width;
-                free.width -= free.width * (h_weight / h_total);
+                // Adjust vertical separator (h_sep)
+            }
+        }
+ 
+        public void adjustSize(Rectangle free) {
 
-                tmp.x = free.width;
-                tmp.width = width - free.width;
-
-                // Propogate vertically afterward
-                if(left != null) left.adjustSize(tmp, v_total, 0.d, VERTICAL);
+            if(priority == VERTICAL) {
+                if(left != null) adjustSize(free, VERTICAL);
+                if(right != null) adjustSize(free, HORIZONTAL);
+            } else {
+                if(right != null) adjustSize(free, HORIZONTAL);
+                if(left != null) adjustSize(free, VERTICAL);
             }
 
             // Set component in place
-            if(key != null) key.setBounds(tmp);
+            if(key != null) key.setBounds(free);
         }
 
         /**
@@ -379,6 +379,11 @@ public class SplitLayout implements LayoutManager2 {
      * first request to add a component.
     */
     private Node root = null;
+    private Container container;
+
+    public SplitLayout(Container container) {
+        this.container = container;
+    }
 
 
     /**
@@ -399,11 +404,10 @@ public class SplitLayout implements LayoutManager2 {
 
         if(constraints instanceof Split) {
             Split s = (Split) constraints;
-            Component key = s.getComponent();
 
             // Initialize root if necessary
-            if(root == null) root = new Node(ins);
-            else root.insert(key, ins, s.getOrientation());
+            if(root == null) root = new Node(ins, s.getPriority());
+            else root.insert(ins, s);
 
         } else throw new IllegalArgumentException("Expecting Split");
     }
@@ -462,7 +466,7 @@ public class SplitLayout implements LayoutManager2 {
     */
     @Override
     public void invalidateLayout(Container parent) {
-        // Remove cached data (i.e. weights)
+        // Remove cached data (i.e. reset weights)
         LinkedList<Node> search = new LinkedList<Node>();
         if(root != null) search.add(root);
 
@@ -484,7 +488,7 @@ public class SplitLayout implements LayoutManager2 {
             space.width = parent.getWidth() - inset.left - inset.right;
             space.height = parent.getHeight() - inset.top - inset.bottom;
 
-            root.adjustSize(new Rectangle(space), 0.d, 0.d, VERTICAL);
+            root.adjustSize(new Rectangle(space));
         }
     }
 }

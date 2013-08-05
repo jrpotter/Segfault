@@ -11,42 +11,24 @@ public class Main
     {
         MainWindow frame = new MainWindow("Demo");
         Container pane = frame.getContentPane();
-        pane.setLayout(new SplitLayout());
+        pane.setLayout(new SplitLayout(pane));
 
         // First TextArea
-        JTextArea textarea = new JTextArea();
-        pane.add(textarea, new Split());
+        JTextArea textarea = new JTextArea("left");
+        pane.add(textarea, new Split(SplitLayout.HORIZONTAL));
 
-        // Second Table
-        String[] columnNames = {"First Name",
-                                "Last Name",
-                                "Sport",
-                                "# of Years",
-                                "Vegetarian"};
+        // Second
+        JTextArea txtarea2 = new JTextArea("right");
+        pane.add(txtarea2, new Split(textarea, SplitLayout.HORIZONTAL));
 
-        Object[][] data = {
-                            {"Kathy", "Smith",
-                             "Snowboarding", new Integer(5), new Boolean(false)},
-                            {"John", "Doe",
-                             "Rowing", new Integer(3), new Boolean(true)},
-                            {"Sue", "Black",
-                             "Knitting", new Integer(2), new Boolean(false)},
-                            {"Jane", "White",
-                             "Speed reading", new Integer(20), new Boolean(true)},
-                            {"Joe", "Brown",
-                             "Pool", new Integer(10), new Boolean(false)}
-                        };
+        // Third
+        JButton btn = new JButton("test");
+        pane.add(btn, new Split(textarea, SplitLayout.VERTICAL));
 
-        JTable table = new JTable(data, columnNames);
-        JScrollPane scrollPane = new JScrollPane(table);
-        frame.add(scrollPane, new Split(textarea, SplitLayout.HORIZONTAL));
-
-        // Tabbed Panes
-
+        pane.remove(textarea);
 
         frame.pack();
         frame.setVisible(true);
-        frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
     }
 }
